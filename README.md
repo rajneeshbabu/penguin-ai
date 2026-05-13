@@ -10,7 +10,9 @@
 [![RLHF](https://img.shields.io/badge/RLHF-PPO_Style-cyan)](https://github.com)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-A production-quality multi-mode AI chatbot with **RLHF (Reinforcement Learning from Human Feedback)**, **Production RAG**, **Agentic RAG**, animated neural network UI, and support for the latest models via the **Groq free API** — no GPU needed.
+A production-quality multi-mode AI chatbot with **RLHF (Reinforcement Learning from Human Feedback)**, **Production RAG**, **Agentic RAG**, **voice-to-text**, animated neural network UI, and support for the latest models via the **Groq free API** — no GPU needed.
+
+> 🌐 **Live Demo:** [rajneeshbabu.github.io/penguin-ai](https://rajneeshbabu.github.io/penguin-ai/)
 
 ---
 
@@ -18,7 +20,8 @@ A production-quality multi-mode AI chatbot with **RLHF (Reinforcement Learning f
 
 - **4 Chat Modes** — General Chat, Advanced RAG, Agentic RAG, Domain Expert
 - **6 Models** — Llama 4 Scout, Qwen 3 32B, Llama 3.3 70B, Llama 3.1 8B, Mixtral 8×7B, Llama 3 70B
-- **Whisper Large v3 Turbo** — Audio → Text transcription
+- **Voice-to-Text** — Mic button in chat (Whisper Large v3 Turbo via Groq + Web Speech API fallback)
+- **Whisper Large v3 Turbo** — Audio file → Text transcription (sidebar)
 - **Llama Guard 3 20B** — Safety content filter toggle
 - **RLHF System** — PPO-style reward model, value baseline, advantage computation, policy adaptation
 - **Production RAG Pipeline** — 6 layers: semantic chunking → SHA-256 dedup → BM25+FAISS hybrid → RRF fusion → cross-encoder reranking → citation grounding
@@ -95,17 +98,28 @@ User Question
 
 ---
 
+## Live Demo
+
+The `index.html` file is deployed as a GitHub Pages static demo — no server or API key needed.
+
+**View it here → [rajneeshbabu.github.io/penguin-ai](https://rajneeshbabu.github.io/penguin-ai/)**
+
+It showcases the animated UI, auto-playing chat demo, RLHF flow diagram, RAG pipeline, model table, and quick-start steps. To enable GitHub Pages: go to your repo → **Settings → Pages → Source: Deploy from branch → Branch: main → Folder: / (root)**.
+
+---
+
 ## Project Structure
 
 ```
 penguin-ai/
-├── app.py                      # Main Streamlit app (RLHF + RAG + all modes)
+├── app.py                      # Main Streamlit app (RLHF + RAG + Voice + all modes)
 ├── chatbot_pipeline.ipynb      # LangChain pipeline walkthrough notebook
 ├── requirements.txt            # All dependencies
 ├── .env.example                # API key template
-├── rlhf_replay_buffer.jsonl    # Generated at runtime — RLHF training data
+├── .gitignore                  # Excludes .env, checkpoints, replay buffer
+├── rlhf_replay_buffer.jsonl    # Generated at runtime — RLHF training data (gitignored)
 ├── README.md
-└── index.html                  # GitHub Pages static demo
+└── index.html                  # GitHub Pages static demo (live at link above)
 ```
 
 ---
@@ -130,6 +144,8 @@ cd penguin-ai
 # For standard Python:
 pip install -r requirements.txt
 ```
+
+This installs everything including `streamlit-mic-recorder` for the in-chat voice-to-text mic button. If you skip it, the app still works — the mic falls back to the browser's built-in Web Speech API (Chrome only).
 
 ### Step 3 — Get a free Groq API key
 
@@ -218,7 +234,22 @@ Type any question. The RLHF policy adapts the model's temperature based on your 
 2. Upload a document
 3. Ask complex multi-part questions — the agent reasons step by step and retrieves across multiple hops
 
-### Audio Transcription
+### Voice-to-Text (in-chat mic)
+Two modes — whichever is available runs automatically:
+
+**Mode A — Whisper (best quality, requires `streamlit-mic-recorder`):**
+1. Click the **🎙️** mic button above the chat input
+2. Speak your question
+3. Click stop — Whisper Large v3 Turbo transcribes it instantly
+4. The transcript is sent as your message automatically
+
+**Mode B — Web Speech API (no install, Chrome only):**
+1. Click the **🎙️** mic button above the chat input
+2. Speak — words appear in real time
+3. Click **✉️ Use this** — fills the chat box
+4. Press Enter to send
+
+### Audio File Transcription
 1. Scroll to **🎙️ Whisper Audio → Text** in sidebar
 2. Upload mp3, wav, m4a, or webm
 3. Click **▶ Transcribe**
@@ -240,6 +271,8 @@ Toggle **🛡️ Safety Guard** in sidebar — Llama Guard 3 20B checks every re
 |---|---|
 | `No module named 'groq'` | Run: `/opt/anaconda3/bin/pip install groq` |
 | `No module named 'langchain.memory'` | Run: `/opt/anaconda3/bin/pip install langchain==0.2.17` |
+| `No module named 'streamlit_mic_recorder'` | Run: `pip install streamlit-mic-recorder` — or ignore, Web Speech API fallback activates |
+| Mic button not working | Use Chrome; allow microphone access when browser asks |
 | `Invalid API key` | Check `.env` file — no spaces around `=` sign |
 | Model not found error | Switch to **Llama 3.3 70B** (always available on Groq free tier) |
 | Port already in use | Run: `streamlit run app.py --server.port 8503` |
