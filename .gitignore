@@ -1,0 +1,11 @@
+.env
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+rlhf_replay_buffer.jsonl
+faiss_index/
+*.egg-info/
+.venv/
+venv/
