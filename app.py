@@ -22,12 +22,24 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ── API key: check st.secrets (Streamlit Cloud) first, then .env (local) ──────
+def _get_default_api_key():
+    try:
+        return st.secrets.get("GROQ_API_KEY", os.getenv("GROQ_API_KEY", ""))
+    except Exception:
+        return os.getenv("GROQ_API_KEY", "")
+
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Penguin AI",
+    page_title="Penguin AI — Production RAG Chatbot",
     page_icon="🐧",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    menu_items={
+        "Get Help":        "https://github.com/rajneeshbabu/penguin-ai",
+        "Report a bug":    "https://github.com/rajneeshbabu/penguin-ai/issues",
+        "About":           "**Penguin AI** — Production RAG + Agentic RAG chatbot\nBuilt by [Rajneesh](https://github.com/rajneeshbabu)",
+    }
 )
 
 # ── CSS + Animated Background ──────────────────────────────────────────────────
@@ -861,7 +873,7 @@ with st.sidebar:
     st.markdown("---")
 
     api_key = st.text_input("Groq API Key", type="password",
-        value=os.getenv("GROQ_API_KEY",""), help="Free at console.groq.com")
+        value=_get_default_api_key(), help="Free at console.groq.com")
     if not api_key:
         st.warning("⚠️ Enter Groq API key to start", icon="🔑")
 

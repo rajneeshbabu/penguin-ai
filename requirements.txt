@@ -1,7 +1,7 @@
 # Penguin AI — Production RAG + Agentic RAG + RLHF + Voice
 # Install: pip install -r requirements.txt
 
-# Groq API (Llama 3.3 inference — free tier)
+# Groq API (Llama inference — free tier)
 groq>=0.9.0
 
 # LangChain
@@ -16,9 +16,6 @@ faiss-cpu>=1.8.0
 # Embeddings (free, local)
 sentence-transformers>=3.0.0
 
-# Cross-encoder reranker (Layer 4 — ms-marco-MiniLM-L-6-v2)
-# Already included in sentence-transformers
-
 # BM25 sparse retrieval (Layer 3 hybrid)
 rank-bm25>=0.2.2
 
@@ -30,14 +27,9 @@ pdfplumber>=0.11.0
 # Streamlit UI
 streamlit>=1.35.0
 
-# Voice-to-text mic recorder (records audio → Whisper via Groq)
-# Provides mic button in chat; gracefully disabled if not installed
+# Voice-to-text mic recorder (optional — gracefully disabled if unavailable)
 streamlit-mic-recorder>=0.0.4
 
 # Utilities
 python-dotenv>=1.0.0
 tiktoken>=0.7.0
-
-# Notebook
-jupyter>=1.0.0
-ipykernel>=6.0.0
