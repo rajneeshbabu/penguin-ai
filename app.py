@@ -45,9 +45,8 @@ st.set_page_config(
 # ── CSS + Animated Background ──────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* ── Hide Streamlit chrome so header never overlaps ── */
-#MainMenu{visibility:hidden}
-header[data-testid="stHeader"]{background:transparent!important;height:0!important}
+/* ── Keep Streamlit header + three-dot menu visible ── */
+header[data-testid="stHeader"]{background:rgba(5,5,15,0.85)!important;backdrop-filter:blur(8px);border-bottom:1px solid rgba(124,58,237,.15)}
 footer{visibility:hidden}
 
 /* ── Base ── */
