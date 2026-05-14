@@ -9,10 +9,14 @@
 [![FAISS](https://img.shields.io/badge/FAISS-Vector_Store-red)](https://faiss.ai)
 [![RLHF](https://img.shields.io/badge/RLHF-PPO_Style-cyan)](https://github.com)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit%20Cloud-FF4B4B)](https://penguin-ai-eqxw9u846dnak3drizxjmt.streamlit.app)
+[![Project Page](https://img.shields.io/badge/Project%20Page-GitHub%20Pages-222?logo=github)](https://rajneeshbabu.github.io/penguin-ai/)
 
 A production-quality multi-mode AI chatbot with **RLHF (Reinforcement Learning from Human Feedback)**, **Production RAG**, **Agentic RAG**, **voice-to-text**, animated neural network UI, and support for the latest models via the **Groq free API** — no GPU needed.
 
-> 🌐 **Live Demo:** [rajneeshbabu.github.io/penguin-ai](https://rajneeshbabu.github.io/penguin-ai/)
+🚀 **[Launch Streamlit App →](https://penguin-ai-eqxw9u846dnak3drizxjmt.streamlit.app)**
+
+🌐 **[View Project Page →](https://rajneeshbabu.github.io/penguin-ai/)**
 
 ---
 
