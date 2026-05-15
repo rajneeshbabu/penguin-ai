@@ -874,11 +874,8 @@ with st.sidebar:
 
     _server_key = _get_server_api_key()
     if _server_key:
-        # Key is configured on the server — don't expose it in the UI
         api_key = _server_key
-        st.markdown("<span style='font-size:.8rem;color:#34d399'>🔑 API key configured</span>", unsafe_allow_html=True)
     else:
-        # No server key — let user supply their own (stays masked)
         api_key = st.text_input("Groq API Key", type="password",
             value="", placeholder="gsk_...", help="Free at console.groq.com")
         if not api_key:
