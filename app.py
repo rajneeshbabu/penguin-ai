@@ -23,7 +23,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── API key: check st.secrets (Streamlit Cloud) first, then .env (local) ──────
-def _get_default_api_key():
+def _get_server_api_key():
+    """Returns key from server config (secrets/env). Never exposed to the UI."""
     try:
         return st.secrets.get("GROQ_API_KEY", os.getenv("GROQ_API_KEY", ""))
     except Exception:
@@ -871,10 +872,17 @@ with st.sidebar:
     st.markdown("<span class='pipeline-badge'>Production RAG</span> <span class='pipeline-badge agent-badge'>Agentic RAG</span>", unsafe_allow_html=True)
     st.markdown("---")
 
-    api_key = st.text_input("Groq API Key", type="password",
-        value=_get_default_api_key(), help="Free at console.groq.com")
-    if not api_key:
-        st.warning("⚠️ Enter Groq API key to start", icon="🔑")
+    _server_key = _get_server_api_key()
+    if _server_key:
+        # Key is configured on the server — don't expose it in the UI
+        api_key = _server_key
+        st.markdown("<span style='font-size:.8rem;color:#34d399'>🔑 API key configured</span>", unsafe_allow_html=True)
+    else:
+        # No server key — let user supply their own (stays masked)
+        api_key = st.text_input("Groq API Key", type="password",
+            value="", placeholder="gsk_...", help="Free at console.groq.com")
+        if not api_key:
+            st.warning("⚠️ Enter Groq API key to start", icon="🔑")
 
     st.markdown("---")
     mode = st.radio("**Chat Mode**", [
