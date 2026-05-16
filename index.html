@@ -3,19 +3,15 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>🐧 Penguin AI — Multi-mode Chatbot with RLHF</title>
+  <title>🐧 Penguin AI — Multilingual RAG Chatbot with RLHF</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Segoe UI',system-ui,sans-serif;background:#05050f;color:#e0e0e0;overflow-x:hidden;min-height:100vh}
-
-    /* ── AI Canvas background ── */
     #bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
-
-    /* ── Content layer ── */
     .wrap{position:relative;z-index:5;max-width:1100px;margin:0 auto;padding:0 1.5rem}
 
     /* ── Header ── */
-    header{position:relative;z-index:5;padding:2.5rem 1.5rem 1rem;text-align:center}
+    header{position:relative;z-index:5;padding:2.8rem 1.5rem 1.2rem;text-align:center}
     @keyframes titleGlow{0%,100%{filter:drop-shadow(0 0 10px #7c3aed88)}50%{filter:drop-shadow(0 0 28px #a78bfacc)}}
     @keyframes gradShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
     h1{font-size:clamp(2rem,5vw,3.6rem);font-weight:900;letter-spacing:-.02em;
@@ -28,23 +24,33 @@
            background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.35);color:#a78bfa}
     .badge.teal{background:rgba(6,182,212,.12);border-color:rgba(6,182,212,.3);color:#22d3ee}
     .badge.green{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.3);color:#34d399}
-    .cta{display:inline-flex;align-items:center;gap:.6rem;padding:.75rem 2rem;
+    .badge.orange{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3);color:#fbbf24}
+    .cta-row{display:flex;flex-wrap:wrap;gap:.8rem;justify-content:center;margin-top:.5rem}
+    .cta{display:inline-flex;align-items:center;gap:.6rem;padding:.7rem 1.8rem;
          background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:14px;
-         color:#fff;font-weight:700;font-size:1rem;text-decoration:none;
+         color:#fff;font-weight:700;font-size:.95rem;text-decoration:none;
          box-shadow:0 4px 20px rgba(124,58,237,.4);transition:all .25s}
     .cta:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(124,58,237,.6)}
+    .cta.outline{background:transparent;border:1.5px solid rgba(124,58,237,.4);color:#a78bfa;box-shadow:none}
+    .cta.outline:hover{background:rgba(124,58,237,.1);box-shadow:0 4px 20px rgba(124,58,237,.2)}
+
+    /* ── Stats bar ── */
+    .stats-bar{display:flex;flex-wrap:wrap;gap:1rem;justify-content:center;padding:1.5rem 0;border-top:1px solid rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.04);margin:1rem 0}
+    .stat{text-align:center}
+    .stat-val{font-size:1.6rem;font-weight:900;background:linear-gradient(135deg,#a78bfa,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .stat-lbl{font-size:.65rem;color:#445;letter-spacing:.06em;text-transform:uppercase;margin-top:.1rem}
 
     /* ── Live chat demo ── */
-    .demo-section{padding:3rem 0 1rem;text-align:center}
-    .demo-section h2{font-size:1.5rem;font-weight:800;
+    .demo-section{padding:2.5rem 0 1rem;text-align:center}
+    .demo-section h2,.section-title{font-size:1.4rem;font-weight:800;margin-bottom:1.8rem;
        background:linear-gradient(135deg,#a78bfa,#06b6d4);
-       -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:2rem}
+       -webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center}
     .chat-window{background:rgba(255,255,255,.025);border:1px solid rgba(124,58,237,.2);
-      border-radius:20px;padding:1.5rem;max-width:680px;margin:0 auto;min-height:280px;text-align:left}
+      border-radius:20px;padding:1.5rem;max-width:700px;margin:0 auto;min-height:260px;text-align:left}
     .chat-msg{margin:.6rem 0;animation:msgIn .4s ease}
     @keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     .chat-msg.user{display:flex;justify-content:flex-end}
-    .chat-msg.bot {display:flex;justify-content:flex-start}
+    .chat-msg.bot {display:flex;justify-content:flex-start;flex-direction:column}
     .bubble{padding:.7rem 1.1rem;border-radius:18px;font-size:.88rem;line-height:1.6;max-width:85%}
     .bubble.user{background:linear-gradient(135deg,rgba(124,58,237,.3),rgba(79,70,229,.2));
       border:1px solid rgba(124,58,237,.35);color:#e8e0ff;border-radius:18px 18px 4px 18px}
@@ -52,40 +58,47 @@
       color:#c8e8f0;border-radius:18px 18px 18px 4px}
     .chat-lbl{font-size:.62rem;color:#445;font-weight:700;letter-spacing:.08em;
       margin-bottom:.2rem;text-transform:uppercase}
+    .lang-tag{font-size:.65rem;color:#22d3ee;background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.25);
+      border-radius:8px;padding:.1rem .5rem;display:inline-block;margin-bottom:.3rem}
     .typing span{display:inline-block;width:7px;height:7px;margin:0 2px;border-radius:50%;
       background:#7c3aed;animation:dot 1.4s infinite}
     .typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
     @keyframes dot{0%,80%,100%{transform:scale(0);opacity:.4}40%{transform:scale(1);opacity:1}}
 
+    /* ── Multilingual highlight ── */
+    .multilingual-section{padding:2.5rem 0;text-align:center}
+    .lang-grid{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;margin:1rem 0}
+    .lang-chip{padding:.3rem .85rem;border-radius:20px;font-size:.75rem;font-weight:600;
+      background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.2);color:#67e8f9}
+    .multilingual-how{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-top:1.5rem}
+    .how-card{background:rgba(6,182,212,.04);border:1px solid rgba(6,182,212,.12);border-radius:14px;padding:1.2rem;text-align:left}
+    .how-card h4{color:#22d3ee;font-size:.88rem;font-weight:700;margin-bottom:.4rem}
+    .how-card p{font-size:.78rem;color:#556;line-height:1.6}
+
     /* ── Pipeline diagram ── */
-    .pipeline-section{padding:3rem 0}
-    .pipeline-section h2{text-align:center;font-size:1.4rem;font-weight:800;margin-bottom:2rem;
-       background:linear-gradient(135deg,#a78bfa,#06b6d4);
-       -webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    .pipeline{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;align-items:center}
-    .pipe-step{padding:.55rem 1.1rem;background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);
-      border-radius:10px;color:#c4b5fd;font-size:.8rem;font-weight:600;white-space:nowrap}
-    .pipe-arrow{color:#4455aa;font-size:1.2rem}
+    .pipeline-section{padding:2.5rem 0}
+    .pipeline{display:flex;flex-wrap:wrap;gap:.45rem;justify-content:center;align-items:center}
+    .pipe-step{padding:.5rem 1rem;background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.28);
+      border-radius:10px;color:#c4b5fd;font-size:.78rem;font-weight:600;white-space:nowrap}
+    .pipe-step.ml{background:rgba(6,182,212,.08);border-color:rgba(6,182,212,.25);color:#67e8f9}
+    .pipe-arrow{color:#4455aa;font-size:1.1rem}
 
     /* ── Feature cards ── */
-    .features{padding:2rem 0 3rem}
-    .features h2{text-align:center;font-size:1.4rem;font-weight:800;margin-bottom:2rem;
-       background:linear-gradient(135deg,#a78bfa,#34d399);
-       -webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    .card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem}
+    .features{padding:2rem 0 2.5rem}
+    .card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1rem}
     .card{background:rgba(255,255,255,.025);border:1px solid rgba(124,58,237,.18);border-radius:16px;
       padding:1.4rem;transition:all .25s}
     .card:hover{border-color:rgba(124,58,237,.5);transform:translateY(-3px);
       box-shadow:0 8px 30px rgba(124,58,237,.15)}
+    .card.teal-card{border-color:rgba(6,182,212,.18)}
+    .card.teal-card:hover{border-color:rgba(6,182,212,.5);box-shadow:0 8px 30px rgba(6,182,212,.12)}
     .card-icon{font-size:2rem;margin-bottom:.8rem}
-    .card h3{font-size:.98rem;font-weight:700;color:#a78bfa;margin-bottom:.5rem}
-    .card p{font-size:.8rem;color:#667;line-height:1.6}
+    .card h3{font-size:.95rem;font-weight:700;color:#a78bfa;margin-bottom:.4rem}
+    .card.teal-card h3{color:#22d3ee}
+    .card p{font-size:.78rem;color:#667;line-height:1.6}
 
     /* ── Models table ── */
-    .models-section{padding:2rem 0 3rem}
-    .models-section h2{text-align:center;font-size:1.4rem;font-weight:800;margin-bottom:1.5rem;
-       background:linear-gradient(135deg,#06b6d4,#a78bfa);
-       -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .models-section{padding:2rem 0 2.5rem}
     table{width:100%;border-collapse:collapse;font-size:.82rem}
     th{padding:.6rem 1rem;text-align:left;color:#6677aa;font-weight:600;
        border-bottom:1px solid rgba(255,255,255,.06)}
@@ -94,11 +107,14 @@
     .new-badge{background:rgba(6,182,212,.15);color:#22d3ee;padding:.1rem .5rem;
       border-radius:8px;font-size:.65rem;font-weight:700;margin-left:.4rem}
 
+    /* ── RLHF section ── */
+    .rlhf-section{padding:2rem 0;text-align:center}
+    .rlhf-flow{display:flex;flex-wrap:wrap;gap:.6rem;justify-content:center;margin:1rem 0}
+    .rlhf-step{padding:.5rem 1rem;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);
+      border-radius:10px;color:#fbbf24;font-size:.78rem;font-weight:600}
+
     /* ── Quick start ── */
-    .quickstart{padding:2rem 0 4rem}
-    .quickstart h2{text-align:center;font-size:1.4rem;font-weight:800;margin-bottom:1.5rem;
-       background:linear-gradient(135deg,#34d399,#06b6d4);
-       -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .quickstart{padding:2rem 0 3.5rem}
     .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem}
     .step{background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.15);
       border-radius:14px;padding:1.2rem;position:relative}
@@ -108,21 +124,11 @@
     code{background:rgba(255,255,255,.05);padding:.1rem .4rem;border-radius:4px;
       font-family:'Courier New',monospace;color:#a78bfa;font-size:.78rem}
 
-    /* ── RLHF section ── */
-    .rlhf-section{padding:2rem 0;text-align:center}
-    .rlhf-section h2{font-size:1.4rem;font-weight:800;margin-bottom:1rem;
-       background:linear-gradient(135deg,#fbbf24,#f97316);
-       -webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    .rlhf-flow{display:flex;flex-wrap:wrap;gap:.6rem;justify-content:center;margin:1rem 0}
-    .rlhf-step{padding:.5rem 1rem;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);
-      border-radius:10px;color:#fbbf24;font-size:.78rem;font-weight:600}
-
     /* ── Footer ── */
     footer{text-align:center;padding:2rem;color:#2a2a4a;font-size:.78rem;border-top:1px solid rgba(255,255,255,.04)}
   </style>
 </head>
 <body>
-
 <canvas id="bgCanvas"></canvas>
 
 <!-- ── Header ── -->
@@ -130,22 +136,37 @@
   <div class="wrap">
     <div style="font-size:3rem;margin-bottom:.3rem">🐧</div>
     <h1>Penguin AI</h1>
-    <p class="tagline">Multi-mode Chatbot · RLHF · Multilingual RAG · Powered by Groq Free API</p>
+    <p class="tagline">Multilingual RAG · RLHF · Agentic RAG · Powered by Groq Free API</p>
     <div class="badge-row">
       <span class="badge">⚡ Llama 4 Scout</span>
       <span class="badge teal">🌐 Qwen 3 32B</span>
       <span class="badge green">🎙️ Whisper v3 Turbo</span>
-      <span class="badge">🧠 RLHF</span>
-      <span class="badge teal">📄 Production RAG</span>
-      <span class="badge green">🕵️ Agentic RAG</span>
+      <span class="badge orange">🧠 RLHF</span>
       <span class="badge teal">🌍 50+ Languages</span>
+      <span class="badge">📄 Production RAG</span>
+      <span class="badge green">🕵️ Agentic RAG</span>
       <span class="badge">🛡️ Llama Guard</span>
     </div>
-    <a href="https://github.com/rajneeshbabu/penguin-ai" class="cta" target="_blank">
-      🐧 View on GitHub &nbsp;→
-    </a>
+    <div class="cta-row">
+      <a href="https://penguin-ai-eqxw9u846dnak3drizxjmt.streamlit.app" class="cta" target="_blank">🚀 Launch Live App</a>
+      <a href="https://github.com/rajneeshbabu/penguin-ai" class="cta outline" target="_blank">🐧 View on GitHub</a>
+    </div>
   </div>
 </header>
+
+<!-- ── Stats bar ── -->
+<section style="padding:0 1.5rem">
+  <div class="wrap">
+    <div class="stats-bar">
+      <div class="stat"><div class="stat-val">50+</div><div class="stat-lbl">Languages Supported</div></div>
+      <div class="stat"><div class="stat-val">6</div><div class="stat-lbl">LLM Models</div></div>
+      <div class="stat"><div class="stat-val">4</div><div class="stat-lbl">Chat Modes</div></div>
+      <div class="stat"><div class="stat-val">6</div><div class="stat-lbl">RAG Pipeline Layers</div></div>
+      <div class="stat"><div class="stat-val">900</div><div class="stat-lbl">Tok/s via Groq</div></div>
+      <div class="stat"><div class="stat-val">99</div><div class="stat-lbl">Whisper Languages</div></div>
+    </div>
+  </div>
+</section>
 
 <!-- ── Live Chat Demo ── -->
 <section class="demo-section">
@@ -153,7 +174,49 @@
     <h2>🗨️ See It In Action</h2>
     <div class="chat-window" id="chatDemo">
       <div class="chat-lbl">🐧 PENGUIN AI</div>
-      <div class="chat-msg bot"><div class="bubble bot">Hello! I'm Penguin AI. Ask me anything — I support General Chat, Document Q&A, Agentic reasoning, and Domain Expert modes. What would you like to explore?</div></div>
+      <div class="chat-msg bot"><div class="bubble bot">Hello! I'm Penguin AI — ask me anything in any language. I support General Chat, Multilingual RAG, Agentic reasoning, and Domain Expert modes. 🌍</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Multilingual RAG ── -->
+<section class="multilingual-section">
+  <div class="wrap">
+    <h2 class="section-title">🌍 Multilingual RAG — 50+ Languages</h2>
+    <p style="color:#556;font-size:.85rem;max-width:640px;margin:0 auto .8rem;text-align:center">Ask questions in your language — the shared embedding space maps cross-lingual queries to documents natively. No translation step needed.</p>
+    <div class="lang-grid">
+      <span class="lang-chip">🇮🇳 Hindi</span>
+      <span class="lang-chip">🇫🇷 French</span>
+      <span class="lang-chip">🇩🇪 German</span>
+      <span class="lang-chip">🇪🇸 Spanish</span>
+      <span class="lang-chip">🇯🇵 Japanese</span>
+      <span class="lang-chip">🇨🇳 Chinese</span>
+      <span class="lang-chip">🇰🇷 Korean</span>
+      <span class="lang-chip">🇸🇦 Arabic</span>
+      <span class="lang-chip">🇧🇷 Portuguese</span>
+      <span class="lang-chip">🇷🇺 Russian</span>
+      <span class="lang-chip">🇮🇹 Italian</span>
+      <span class="lang-chip">🇹🇷 Turkish</span>
+      <span class="lang-chip">🇧🇩 Bengali</span>
+      <span class="lang-chip">+ 37 more</span>
+    </div>
+    <div class="multilingual-how">
+      <div class="how-card">
+        <h4>🔤 Multilingual Embeddings</h4>
+        <p><code>paraphrase-multilingual-MiniLM-L12-v2</code> — 471 MB, CPU-only. Maps all 50+ languages into a single shared vector space so Hindi queries match English docs seamlessly.</p>
+      </div>
+      <div class="how-card">
+        <h4>🎯 Multilingual Reranker</h4>
+        <p><code>mmarco-mMiniLMv2-L12-H384-v1</code> — cross-encoder trained on MS MARCO in 13 languages. Scores query–passage relevance across language boundaries.</p>
+      </div>
+      <div class="how-card">
+        <h4>🔍 Auto Language Detection</h4>
+        <p><code>langdetect</code> identifies your query language instantly. A language badge appears in the UI and the LLM is instructed to respond in the same language.</p>
+      </div>
+      <div class="how-card">
+        <h4>🎙️ Whisper — 99 Languages</h4>
+        <p>Voice input auto-detects spoken language — no language selector needed. Speak Hindi, French, Spanish or any of 99 supported languages and Whisper transcribes it perfectly.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -161,7 +224,7 @@
 <!-- ── RAG Pipeline ── -->
 <section class="pipeline-section">
   <div class="wrap">
-    <h2>🔬 Multilingual Production RAG Pipeline</h2>
+    <h2 class="section-title">🔬 Production RAG Pipeline</h2>
     <div class="pipeline">
       <span class="pipe-step">📥 Document Upload</span>
       <span class="pipe-arrow">→</span>
@@ -169,26 +232,27 @@
       <span class="pipe-arrow">→</span>
       <span class="pipe-step">🔑 SHA-256 Dedup</span>
       <span class="pipe-arrow">→</span>
-      <span class="pipe-step">🌍 Multilingual Embed (50+ langs)</span>
+      <span class="pipe-step ml">🌍 Multilingual Embed</span>
       <span class="pipe-arrow">→</span>
       <span class="pipe-step">🔀 BM25 + FAISS Hybrid</span>
       <span class="pipe-arrow">→</span>
       <span class="pipe-step">⚖️ RRF Fusion</span>
       <span class="pipe-arrow">→</span>
-      <span class="pipe-step">🎯 mMiniLM Rerank</span>
+      <span class="pipe-step ml">🎯 mMiniLM Rerank</span>
       <span class="pipe-arrow">→</span>
-      <span class="pipe-step">📌 Citations + Cache</span>
+      <span class="pipe-step">📌 Citations + LRU Cache</span>
       <span class="pipe-arrow">→</span>
-      <span class="pipe-step">🤖 LLM Answer (same language)</span>
+      <span class="pipe-step ml">🤖 LLM (same language)</span>
     </div>
+    <p style="text-align:center;color:#445;font-size:.75rem;margin-top:1rem">Highlighted steps are multilingual-aware</p>
   </div>
 </section>
 
 <!-- ── RLHF Section ── -->
 <section class="rlhf-section">
   <div class="wrap">
-    <h2>🧠 RLHF — Reinforcement Learning from Human Feedback</h2>
-    <p style="color:#667;font-size:.85rem;max-width:600px;margin:0 auto .8rem">PPO-style reward model that adapts the chatbot's behaviour in real-time based on your 👍/👎 feedback — no GPU needed.</p>
+    <h2 class="section-title">🧠 RLHF — Reinforcement Learning from Human Feedback</h2>
+    <p style="color:#667;font-size:.85rem;max-width:600px;margin:0 auto .8rem">PPO-style reward model adapts the chatbot's behaviour in real-time from your 👍/👎 feedback — no GPU, no retraining.</p>
     <div class="rlhf-flow">
       <span class="rlhf-step">👍👎 Human Signal</span>
       <span style="color:#555">→</span>
@@ -198,7 +262,7 @@
       <span style="color:#555">→</span>
       <span class="rlhf-step">📈 Advantage</span>
       <span style="color:#555">→</span>
-      <span class="rlhf-step">🔄 Policy Update</span>
+      <span class="rlhf-step">🔄 Policy Update ±0.20</span>
       <span style="color:#555">→</span>
       <span class="rlhf-step">🎯 Better Responses</span>
     </div>
@@ -208,15 +272,16 @@
 <!-- ── Features ── -->
 <section class="features">
   <div class="wrap">
-    <h2>✨ Features</h2>
+    <h2 class="section-title">✨ All Features</h2>
     <div class="card-grid">
-      <div class="card"><div class="card-icon">🤖</div><h3>General Chat</h3><p>Conversational AI with 20-turn sliding memory window. RLHF policy adapts temperature to your preferences.</p></div>
-      <div class="card"><div class="card-icon">🌍</div><h3>Multilingual RAG</h3><p>Ask in Hindi, French, German, Spanish, Japanese or 46 more languages — multilingual embeddings map cross-lingual queries to documents natively. Auto language detection badges your query language in the UI.</p></div>
-      <div class="card"><div class="card-icon">📄</div><h3>Advanced RAG</h3><p>Upload PDF/DOCX/TXT. 6-layer pipeline: semantic chunks → multilingual BM25+FAISS → RRF → mMiniLM rerank → citations.</p></div>
-      <div class="card"><div class="card-icon">🕵️</div><h3>Agentic RAG</h3><p>ReAct loop with multi-hop retrieval (up to 3 hops). LLM reasons, picks tools, and self-corrects.</p></div>
-      <div class="card"><div class="card-icon">🧠</div><h3>Domain Expert</h3><p>6 specialised personas: Medical · Legal · Finance · Code · Fitness · Research.</p></div>
-      <div class="card"><div class="card-icon">🎙️</div><h3>Whisper Multilingual</h3><p>Upload any audio in any language — Whisper auto-detects and transcribes in 99 languages via Groq's Whisper API.</p></div>
-      <div class="card"><div class="card-icon">🛡️</div><h3>Safety Guard</h3><p>Llama Guard 3 20B checks every response for harmful content before it reaches you.</p></div>
+      <div class="card teal-card"><div class="card-icon">🌍</div><h3>Multilingual RAG</h3><p>Ask in Hindi, French, German, Spanish, Japanese or 46 more languages. Shared embedding space — no translation step. Auto language badge in the UI.</p></div>
+      <div class="card"><div class="card-icon">📄</div><h3>Advanced RAG</h3><p>Upload PDF / DOCX / TXT. 6-layer pipeline: semantic chunks → multilingual BM25+FAISS → RRF fusion → mMiniLM rerank → citations.</p></div>
+      <div class="card"><div class="card-icon">🕵️</div><h3>Agentic RAG</h3><p>ReAct loop with multi-hop retrieval (up to 3 hops). LLM reasons, picks tools (search / summarise / verify), self-corrects, and gives a grounded final answer.</p></div>
+      <div class="card"><div class="card-icon">🧠</div><h3>RLHF</h3><p>PPO-style reward model adapts temperature in real-time from 👍/👎 feedback. Export replay buffer as JSONL for offline fine-tuning with HuggingFace TRL.</p></div>
+      <div class="card"><div class="card-icon">🤖</div><h3>General Chat</h3><p>Conversational AI with 20-turn sliding memory. RLHF policy adapts the generation style to your preferences over the session.</p></div>
+      <div class="card"><div class="card-icon">🎙️</div><h3>Voice Mic</h3><p>Click 🎙️, speak, stop — auto-transcribed by Whisper Large v3 Turbo (Groq). Supports 99 languages with automatic language detection.</p></div>
+      <div class="card"><div class="card-icon">🧑‍⚕️</div><h3>Domain Expert</h3><p>6 specialised personas: Medical · Legal · Finance · Code · Fitness · Research. Domain-tuned system prompts for accurate expert-level answers.</p></div>
+      <div class="card"><div class="card-icon">🛡️</div><h3>Safety Guard</h3><p>Llama Guard 3 20B checks every response for unsafe content before it reaches you. Toggle on/off in the sidebar.</p></div>
     </div>
   </div>
 </section>
@@ -224,7 +289,7 @@
 <!-- ── Models ── -->
 <section class="models-section">
   <div class="wrap">
-    <h2>⚡ Supported Models</h2>
+    <h2 class="section-title">⚡ Supported Models</h2>
     <table>
       <tr><th>Model</th><th>Type</th><th>Context</th><th>Best For</th></tr>
       <tr><td>Llama 4 Scout 17B <span class="new-badge">NEW</span></td><td>Chat</td><td>128K</td><td>Latest Meta — fast & accurate</td></tr>
@@ -232,8 +297,10 @@
       <tr><td>Llama 3.3 70B</td><td>Chat</td><td>128K</td><td>Best overall quality (default)</td></tr>
       <tr><td>Llama 3.1 8B</td><td>Chat</td><td>128K</td><td>Speed-critical tasks</td></tr>
       <tr><td>Mixtral 8×7B</td><td>Chat</td><td>32K</td><td>Long documents</td></tr>
-      <tr><td>Whisper Large v3 Turbo <span class="new-badge">NEW</span></td><td>Audio</td><td>—</td><td>Speech → Text</td></tr>
-      <tr><td>Llama Guard 3 20B <span class="new-badge">NEW</span></td><td>Safety</td><td>—</td><td>Content safety filter</td></tr>
+      <tr><td>Whisper Large v3 Turbo</td><td>Audio</td><td>—</td><td>Speech → Text · 99 languages · auto-detect</td></tr>
+      <tr><td>Llama Guard 3 20B</td><td>Safety</td><td>—</td><td>Content safety filter</td></tr>
+      <tr><td>multilingual-MiniLM-L12-v2 <span class="new-badge">NEW</span></td><td>Embeddings</td><td>—</td><td>50+ language RAG embeddings (local)</td></tr>
+      <tr><td>mmarco-mMiniLMv2-L12 <span class="new-badge">NEW</span></td><td>Reranker</td><td>—</td><td>Cross-lingual reranking · 13 languages (local)</td></tr>
     </table>
   </div>
 </section>
@@ -241,36 +308,32 @@
 <!-- ── Quick Start ── -->
 <section class="quickstart">
   <div class="wrap">
-    <h2>🚀 Quick Start</h2>
+    <h2 class="section-title">🚀 Quick Start</h2>
     <div class="steps">
-      <div class="step"><span class="step-num">1</span><h4>Clone</h4><p><code>git clone https://github.com/rajneeshbabu/penguin-ai.git</code><br>then<br><code>cd penguin-ai</code></p></div>
-      <div class="step"><span class="step-num">2</span><h4>Install</h4><p><code>/opt/anaconda3/bin/pip install -r requirements.txt</code></p></div>
-      <div class="step"><span class="step-num">3</span><h4>API Key</h4><p>Get a free key at <strong>console.groq.com</strong> then:<br><code>echo "GROQ_API_KEY=gsk_..." > .env</code></p></div>
-      <div class="step"><span class="step-num">4</span><h4>Run</h4><p><code>streamlit run app.py</code><br>Opens at <strong>localhost:8501</strong></p></div>
+      <div class="step"><span class="step-num">1</span><h4>Clone</h4><p><code>git clone https://github.com/rajneeshbabu/penguin-ai.git</code><br><br><code>cd penguin-ai</code></p></div>
+      <div class="step"><span class="step-num">2</span><h4>Install</h4><p><code>pip install -r requirements.txt</code><br><br>Includes <code>langdetect</code> for auto language detection.</p></div>
+      <div class="step"><span class="step-num">3</span><h4>API Key</h4><p>Free key at <strong>console.groq.com</strong><br><br><code>echo "GROQ_API_KEY=gsk_..." > .env</code></p></div>
+      <div class="step"><span class="step-num">4</span><h4>Run</h4><p><code>streamlit run app.py</code><br><br>Opens at <strong>localhost:8501</strong></p></div>
     </div>
   </div>
 </section>
 
 <footer>
-  🐧 Penguin AI &nbsp;·&nbsp; Built with Llama 4 · Qwen 3 · Whisper · Groq · LangChain · FAISS · RLHF &nbsp;·&nbsp; MIT License
+  🐧 Penguin AI &nbsp;·&nbsp; Llama 4 · Qwen 3 · Whisper · Groq · LangChain · FAISS · Multilingual RAG · RLHF &nbsp;·&nbsp; MIT License
 </footer>
 
 <script>
-// ── AI Circuit-board + Data-stream + Chat bubble canvas ──────────────────────
 (function(){
   var c=document.getElementById('bgCanvas'), ctx=c.getContext('2d');
   function resize(){c.width=window.innerWidth;c.height=window.innerHeight;}
   resize(); window.addEventListener('resize',function(){resize();buildGrid();buildCols();});
-
-  var t=0, W, H;
-  var GRID=65, junctions=[];
+  var t=0, W, H, GRID=65, junctions=[];
   function buildGrid(){
     junctions=[]; W=c.width; H=c.height;
     for(var x=0;x<W;x+=GRID) for(var y=0;y<H;y+=GRID)
       if(Math.random()<0.5) junctions.push({x:x,y:y,pulse:Math.random()*Math.PI*2,active:Math.random()<0.25});
   }
   buildGrid();
-
   var GLYPHS='01アイ∑∇λπθ∈⊕≈∞◆▲●'.split(''), cols=[], COL_W=24;
   function buildCols(){
     cols=[];
@@ -280,22 +343,18 @@
                  chars:Array.from({length:18},function(){return GLYPHS[Math.floor(Math.random()*GLYPHS.length)]})});
   }
   buildCols();
-
   var NODES=38, nodes=[];
   for(var i=0;i<NODES;i++) nodes.push({
     x:Math.random()*window.innerWidth, y:Math.random()*window.innerHeight,
     vx:(Math.random()-.5)*.3, vy:(Math.random()-.5)*.3,
     r:1.5+Math.random()*2.2, pulse:Math.random()*Math.PI*2, type:i%3
   });
-
   function draw(){
     t+=0.011; W=c.width; H=c.height;
     ctx.clearRect(0,0,W,H);
-    // grid
     ctx.strokeStyle='rgba(100,50,200,.045)'; ctx.lineWidth=.5;
     for(var x=0;x<W;x+=GRID){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
     for(var y=0;y<H;y+=GRID){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
-    // junctions
     junctions.forEach(function(j){
       var p=Math.sin(t*1.8+j.pulse);
       ctx.beginPath();ctx.arc(j.x,j.y,1.8,0,Math.PI*2);
@@ -303,7 +362,6 @@
       if(j.active){ctx.beginPath();ctx.arc(j.x,j.y,5+p*3,0,Math.PI*2);
         ctx.strokeStyle='rgba(124,58,237,.06)';ctx.lineWidth=1;ctx.stroke();}
     });
-    // data streams
     ctx.font='9px monospace';
     cols.forEach(function(col){
       col.y+=col.speed;
@@ -314,7 +372,6 @@
         ctx.fillText(ch,col.x,col.y+i*14);
       });
     });
-    // node connections
     for(var i=0;i<NODES;i++) for(var j=i+1;j<NODES;j++){
       var dx=nodes[i].x-nodes[j].x,dy=nodes[i].y-nodes[j].y,d=Math.sqrt(dx*dx+dy*dy);
       if(d<130){
@@ -328,7 +385,6 @@
         }
       }
     }
-    // nodes
     nodes.forEach(function(n){
       n.x+=n.vx;n.y+=n.vy;
       if(n.x<0||n.x>W)n.vx*=-1;if(n.y<0||n.y>H)n.vy*=-1;
@@ -345,33 +401,50 @@
 
   // ── Auto chat demo ──────────────────────────────────────────────────────────
   var convos=[
-    [{role:'user',text:'What is Agentic RAG?'},{role:'bot',text:'Agentic RAG uses a ReAct loop — the LLM reasons about the question, decides which tool to call (search, summarise, verify), observes the result, and repeats up to 3 hops before giving a final answer. Much more powerful than single-shot retrieval! 🕵️'}],
-    [{role:'user',text:'क्या तुम हिंदी में जवाब दे सकते हो?'},{role:'bot',text:'🌐 Detected: Hindi — हाँ! मैं 50+ भाषाओं को समझता हूँ। आप हिंदी, फ्रेंच, जर्मन, स्पेनिश या किसी भी भाषा में सवाल पूछ सकते हैं — मैं उसी भाषा में जवाब दूँगा। 🌍'}],
-    [{role:'user',text:'How does RLHF work here?'},{role:'bot',text:'Each 👍/👎 you click feeds a reward model (human signal + auto heuristics). The advantage (reward − baseline) drives a PPO-style temperature update — positive advantage → exploit, negative → explore. Your feedback literally shapes future responses! 🧠'}],
-    [{role:'user',text:'Can I upload a PDF in French?'},{role:'bot',text:'🌐 Yes! Upload any document in any language. The multilingual embeddings (paraphrase-multilingual-MiniLM-L12-v2) map French, English, German and 47 more languages into the same vector space — so you can upload a French doc and ask questions in English (or vice versa)! ✅'}],
-    [{role:'user',text:'How fast is Llama 4 Scout?'},{role:'bot',text:'Via Groq\'s hardware, Llama 4 Scout 17B runs at ~800–900 tok/s — you can see the live tok/s counter below each response. That\'s real-time streaming, not a loading bar! ⚡'}],
+    [
+      {role:'user',text:'What is Multilingual RAG?'},
+      {role:'bot',lang:'English',text:'Multilingual RAG uses a shared embedding space (paraphrase-multilingual-MiniLM-L12-v2) so your query in any language matches documents in any other language — no translation needed. Just ask in Hindi, French, Japanese or 47 more languages! 🌍'}
+    ],
+    [
+      {role:'user',text:'क्या तुम हिंदी में जवाब दे सकते हो?'},
+      {role:'bot',lang:'Hindi',text:'🌐 हाँ बिल्कुल! मैं 50+ भाषाओं को समझता हूँ। आप हिंदी, फ्रेंच, जर्मन, स्पेनिश या किसी भी भाषा में सवाल पूछ सकते हैं — मैं उसी भाषा में जवाब दूँगा। 🇮🇳'}
+    ],
+    [
+      {role:'user',text:'How does RLHF work here?'},
+      {role:'bot',lang:'English',text:'Every 👍/👎 you click feeds a PPO-style reward model. The advantage signal (reward − baseline) shifts the generation temperature by ±0.20 — positive advantage → exploit good style, negative → explore new styles. Your feedback literally shapes future responses! 🧠'}
+    ],
+    [
+      {role:'user',text:'Can I upload a French PDF and ask in English?'},
+      {role:'bot',lang:'English',text:'🌐 Yes! The multilingual embeddings map French and English into the same vector space. Upload a French doc, ask in English (or vice versa) — the cross-lingual retrieval works seamlessly. The mMiniLM reranker also handles cross-lingual scoring. ✅'}
+    ],
+    [
+      {role:'user',text:'How fast is Llama 4 Scout?'},
+      {role:'bot',lang:'English',text:'Via Groq\'s LPU hardware, Llama 4 Scout 17B runs at ~800–900 tok/s. You can see the live tok/s counter below every response — real-time streaming, not a loading spinner! ⚡'}
+    ],
   ];
   var ci=0, demo=document.getElementById('chatDemo');
   function runConvo(idx){
     var msgs=convos[idx%convos.length], mi=0;
     demo.innerHTML='';
     function addMsg(){
-      if(mi>=msgs.length){setTimeout(function(){ci++;runConvo(ci);},3500);return;}
+      if(mi>=msgs.length){setTimeout(function(){ci++;runConvo(ci);},3800);return;}
       var m=msgs[mi++];
       if(m.role==='bot'){
-        var lbl=document.createElement('div');lbl.className='chat-lbl';lbl.textContent='🐧 PENGUIN AI';demo.appendChild(lbl);
         var wrap=document.createElement('div');wrap.className='chat-msg bot';
+        if(m.lang){var lt=document.createElement('div');lt.className='lang-tag';lt.textContent='🌐 '+m.lang;wrap.appendChild(lt);}
+        var lbl=document.createElement('div');lbl.className='chat-lbl';lbl.textContent='🐧 PENGUIN AI';wrap.appendChild(lbl);
         var b=document.createElement('div');b.className='bubble bot';
         var td=document.createElement('div');td.className='typing';
         td.innerHTML='<span></span><span></span><span></span>';
         b.appendChild(td);wrap.appendChild(b);demo.appendChild(wrap);
-        setTimeout(function(){b.innerHTML=m.text;setTimeout(addMsg,1200);},900);
+        setTimeout(function(){b.innerHTML=m.text;setTimeout(addMsg,1400);},950);
       } else {
-        var lbl2=document.createElement('div');lbl2.className='chat-lbl';lbl2.style.textAlign='right';lbl2.textContent='YOU';demo.appendChild(lbl2);
         var wrap2=document.createElement('div');wrap2.className='chat-msg user';
+        var lbl2=document.createElement('div');lbl2.className='chat-lbl';lbl2.style.textAlign='right';lbl2.textContent='YOU';
+        demo.insertBefore(lbl2,wrap2);
         var b2=document.createElement('div');b2.className='bubble user';b2.textContent=m.text;
-        wrap2.appendChild(b2);demo.appendChild(wrap2);
-        setTimeout(addMsg,600);
+        wrap2.appendChild(b2);demo.appendChild(lbl2);demo.appendChild(wrap2);
+        setTimeout(addMsg,700);
       }
     }
     addMsg();
