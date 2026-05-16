@@ -1,14 +1,20 @@
 """
-Penguin — Production RAG + Agentic RAG
+Penguin — Production RAG + Agentic RAG + Multilingual RAG
 Pipeline based on: RAG at Scale (Production Architecture Guide)
 
 Layers implemented:
   1. Semantic chunking + SHA-256 dedup + metadata enrichment
-  2. HuggingFace embeddings + FAISS vector store
+  2. Multilingual embeddings (paraphrase-multilingual-MiniLM-L12-v2, 50+ langs) + FAISS
   3. Hybrid retrieval: BM25 (sparse) + FAISS (dense) → RRF fusion
-  4. Cross-encoder reranking (top-20 → top-5)
+  4. Multilingual cross-encoder reranking (mmarco-mMiniLMv2, top-20 → top-5)
   5. MMR dedup + context compression + citation grounding
   6. LRU query cache + RAGAS-style faithfulness eval
+
+Multilingual RAG:
+  - Query & documents in any of 50+ languages — same shared embedding space
+  - langdetect auto-detects query language → language badge in UI
+  - Whisper auto language detection (no longer English-only)
+  - LLM responds in the same language as the user query
 
 Agentic RAG:
   ReAct loop — LLM decides when/what to retrieve, supports multi-hop
@@ -19,6 +25,29 @@ import streamlit.components.v1 as components
 import os, re, json as _json, hashlib, time
 from functools import lru_cache
 from dotenv import load_dotenv
+
+# ── Language detection (graceful fallback if not installed) ────────────────────
+try:
+    from langdetect import detect as _langdetect, LangDetectException
+    def detect_language(text: str) -> str:
+        """Returns ISO-639-1 language code, e.g. 'en', 'hi', 'fr'. Falls back to 'en'."""
+        try:
+            return _langdetect(text[:400]) if len(text.strip()) > 10 else "en"
+        except LangDetectException:
+            return "en"
+    LANGDETECT_AVAILABLE = True
+except ImportError:
+    def detect_language(text: str) -> str:
+        return "en"
+    LANGDETECT_AVAILABLE = False
+
+LANG_NAMES = {
+    "en":"English","hi":"Hindi","fr":"French","de":"German","es":"Spanish",
+    "zh-cn":"Chinese","ja":"Japanese","ko":"Korean","ar":"Arabic","pt":"Portuguese",
+    "ru":"Russian","it":"Italian","nl":"Dutch","tr":"Turkish","pl":"Polish",
+    "sv":"Swedish","da":"Danish","fi":"Finnish","no":"Norwegian","bn":"Bengali",
+    "ta":"Tamil","te":"Telugu","mr":"Marathi","gu":"Gujarati","ur":"Urdu",
+}
 
 load_dotenv()
 
@@ -435,7 +464,9 @@ def hybrid_retrieve(vectorstore, bm25_tuple, query: str, top_k: int = 20):
 @st.cache_resource(show_spinner=False)
 def get_cross_encoder():
     from sentence_transformers import CrossEncoder
-    return CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2", max_length=512)
+    # mmarco-mMiniLMv2: multilingual cross-encoder trained on MS MARCO (13 languages)
+    # Scores query–passage relevance across language boundaries
+    return CrossEncoder("cross-encoder/mmarco-mMiniLMv2-L12-H384-v1", max_length=512)
 
 
 def rerank_chunks(query: str, candidates: list, top_k: int = 5) -> list[tuple]:
@@ -653,8 +684,12 @@ def faithfulness_score(answer: str, context: str) -> float:
 @st.cache_resource(show_spinner=False)
 def get_embeddings():
     from langchain_huggingface import HuggingFaceEmbeddings
+    # paraphrase-multilingual-MiniLM-L12-v2:
+    #   - 50+ languages in a shared embedding space
+    #   - Hindi/French/German queries match English documents natively
+    #   - 471 MB, runs on CPU, drop-in replacement for all-MiniLM-L6-v2
     return HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
         model_kwargs={"device": "cpu"},
         encode_kwargs={"normalize_embeddings": True}
     )
@@ -685,13 +720,15 @@ def run_safety_guard(client, text: str) -> dict:
         return {"safe": True, "category": "guard_unavailable", "raw": str(e)}
 
 def transcribe_audio(client, audio_bytes: bytes, filename: str) -> str:
-    """Whisper Large v3 Turbo — speech to text via Groq."""
+    """Whisper Large v3 Turbo — multilingual speech to text via Groq.
+    No language= param → Whisper auto-detects from audio (supports 99 languages).
+    """
     try:
         transcription = client.audio.transcriptions.create(
             file=(filename, audio_bytes),
             model="whisper-large-v3-turbo",
             response_format="text",
-            language="en",
+            # language omitted → auto-detect (Hindi, French, German, etc.)
         )
         return transcription
     except Exception as e:
@@ -869,7 +906,7 @@ init_state()
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
     st.markdown("### 🐧 Penguin")
-    st.markdown("<span class='pipeline-badge'>Production RAG</span> <span class='pipeline-badge agent-badge'>Agentic RAG</span>", unsafe_allow_html=True)
+    st.markdown("<span class='pipeline-badge'>Production RAG</span> <span class='pipeline-badge agent-badge'>Agentic RAG</span> <span class='pipeline-badge' style='background:rgba(6,182,212,.15);border-color:rgba(6,182,212,.35);color:#67e8f9'>🌐 Multilingual</span>", unsafe_allow_html=True)
     st.markdown("---")
 
     _server_key = _get_server_api_key()
@@ -964,8 +1001,9 @@ with st.sidebar:
     if mode in ("📄 Advanced RAG", "🕵️ Agentic RAG"):
         st.markdown("---")
         st.markdown("**RAG Pipeline**")
-        for step in ["Semantic chunk","SHA-256 dedup","BM25+FAISS","RRF fusion","Cross-encoder","MMR+cite","LRU cache"]:
+        for step in ["Semantic chunk","SHA-256 dedup","BM25+FAISS","RRF fusion","mMiniLM rerank","MMR+cite","LRU cache"]:
             st.markdown(f"<span class='pipeline-badge layer-badge' style='display:block;margin:.1rem 0'>✓ {step}</span>", unsafe_allow_html=True)
+        st.markdown("<span class='pipeline-badge' style='display:block;margin:.1rem 0;background:rgba(6,182,212,.12);border-color:rgba(6,182,212,.3);color:#67e8f9'>🌐 50+ language embeddings</span>", unsafe_allow_html=True)
 
     # ── Live stats ──────────────────────────────────────────────────────────
     st.markdown("---")
@@ -1377,6 +1415,12 @@ if user_input:
         # ── AGENTIC RAG ────────────────────────────────────────────────────
         if mode == "🕵️ Agentic RAG":
             thinking.empty()
+            detected_lang = detect_language(user_input)
+            lang_name = LANG_NAMES.get(detected_lang, detected_lang.upper())
+            st.markdown(
+                f"<span style='font-size:.7rem;color:#67e8f9'>🌐 Detected language: <b>{lang_name}</b></span>",
+                unsafe_allow_html=True
+            )
             st.markdown("<div class='msg-lbl'>🕵️ AGENTIC RAG</div>", unsafe_allow_html=True)
             with st.spinner("Agent reasoning & retrieving…"):
                 t0 = time.time()
@@ -1392,6 +1436,13 @@ if user_input:
         # ── ADVANCED RAG ───────────────────────────────────────────────────
         elif mode == "📄 Advanced RAG":
             thinking.empty()
+            # ── Language detection ─────────────────────────────────────────
+            detected_lang = detect_language(user_input)
+            lang_name = LANG_NAMES.get(detected_lang, detected_lang.upper())
+            st.markdown(
+                f"<span style='font-size:.7rem;color:#67e8f9'>🌐 Detected language: <b>{lang_name}</b></span>",
+                unsafe_allow_html=True
+            )
             with st.spinner("🔍 Hybrid retrieval → Reranking → Assembling…"):
                 result, from_cache = cached_retrieve(
                     user_input,
@@ -1407,7 +1458,8 @@ if user_input:
 
             system_prompt = (
                 "You are Penguin in Advanced RAG mode. Answer ONLY from the provided context. "
-                "Cite chunks as [p.X] or [Chunk N]. If unsure, say so.\n\n"
+                "Cite chunks as [p.X] or [Chunk N]. If unsure, say so. "
+                f"IMPORTANT: The user is writing in {lang_name} — respond in the same language.\n\n"
                 f"RETRIEVED CONTEXT:\n{context}"
             )
             history = st.session_state.messages[-20:]

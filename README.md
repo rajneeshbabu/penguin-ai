@@ -1,4 +1,4 @@
-# 🐧 Penguin AI — Multi-mode Chatbot with RLHF
+# 🐧 Penguin AI — Multi-mode Chatbot with RLHF & Multilingual RAG
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://python.org)
 [![Llama 4](https://img.shields.io/badge/Llama_4_Scout-17B-purple)](https://groq.com)
@@ -7,12 +7,13 @@
 [![Groq](https://img.shields.io/badge/Groq-Free_API-orange)](https://console.groq.com)
 [![LangChain](https://img.shields.io/badge/LangChain-0.2-green)](https://langchain.com)
 [![FAISS](https://img.shields.io/badge/FAISS-Vector_Store-red)](https://faiss.ai)
+[![Multilingual](https://img.shields.io/badge/Multilingual-50%2B_Languages-06b6d4)](https://www.sbert.net)
 [![RLHF](https://img.shields.io/badge/RLHF-PPO_Style-cyan)](https://github.com)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit%20Cloud-FF4B4B)](https://penguin-ai-eqxw9u846dnak3drizxjmt.streamlit.app)
 [![Project Page](https://img.shields.io/badge/Project%20Page-GitHub%20Pages-222?logo=github)](https://rajneeshbabu.github.io/penguin-ai/)
 
-A production-quality multi-mode AI chatbot with **RLHF (Reinforcement Learning from Human Feedback)**, **Production RAG**, **Agentic RAG**, **voice-to-text**, animated neural network UI, and support for the latest models via the **Groq free API** — no GPU needed.
+A production-quality multi-mode AI chatbot with **RLHF (Reinforcement Learning from Human Feedback)**, **Multilingual Production RAG**, **Agentic RAG**, **voice-to-text**, animated neural network UI, and support for the latest models via the **Groq free API** — no GPU needed.
 
 🚀 **[Launch Streamlit App →](https://penguin-ai-eqxw9u846dnak3drizxjmt.streamlit.app)**
 
@@ -24,11 +25,15 @@ A production-quality multi-mode AI chatbot with **RLHF (Reinforcement Learning f
 
 - **4 Chat Modes** — General Chat, Advanced RAG, Agentic RAG, Domain Expert
 - **6 Models** — Llama 4 Scout, Qwen 3 32B, Llama 3.3 70B, Llama 3.1 8B, Mixtral 8×7B, Llama 3 70B
+- **🌐 Multilingual RAG** — Ask questions in Hindi, French, German, Spanish, Chinese, Japanese (50+ languages) — shared embedding space maps cross-lingual queries to documents natively
+- **Auto Language Detection** — `langdetect` identifies query language; LLM responds in the same language; language badge shown in UI
+- **Multilingual Embeddings** — `paraphrase-multilingual-MiniLM-L12-v2` (50+ languages, 471 MB, CPU)
+- **Multilingual Cross-Encoder** — `mmarco-mMiniLMv2-L12-H384-v1` reranker across 13 languages
 - **Voice-to-Text** — Mic button in chat (Whisper Large v3 Turbo via Groq + Web Speech API fallback)
-- **Whisper Large v3 Turbo** — Audio file → Text transcription (sidebar)
+- **Whisper Multilingual** — Audio file → Text transcription with auto language detection (99 languages)
 - **Llama Guard 3 20B** — Safety content filter toggle
 - **RLHF System** — PPO-style reward model, value baseline, advantage computation, policy adaptation
-- **Production RAG Pipeline** — 6 layers: semantic chunking → SHA-256 dedup → BM25+FAISS hybrid → RRF fusion → cross-encoder reranking → citation grounding
+- **Production RAG Pipeline** — 6 layers: semantic chunking → SHA-256 dedup → BM25+FAISS hybrid → RRF fusion → multilingual cross-encoder reranking → citation grounding
 - **Agentic RAG** — ReAct loop with multi-hop retrieval (up to 3 hops)
 - **Animated UI** — Neural network canvas background, glowing chat bubbles, live token speed counter
 
@@ -275,12 +280,14 @@ Toggle **🛡️ Safety Guard** in sidebar — Llama Guard 3 20B checks every re
 |---|---|
 | `No module named 'groq'` | Run: `/opt/anaconda3/bin/pip install groq` |
 | `No module named 'langchain.memory'` | Run: `/opt/anaconda3/bin/pip install langchain==0.2.17` |
+| `No module named 'langdetect'` | Run: `pip install langdetect` — or ignore, language detection gracefully falls back to English |
 | `No module named 'streamlit_mic_recorder'` | Run: `pip install streamlit-mic-recorder` — or ignore, Web Speech API fallback activates |
 | Mic button not working | Use Chrome; allow microphone access when browser asks |
 | `Invalid API key` | Check `.env` file — no spaces around `=` sign |
 | Model not found error | Switch to **Llama 3.3 70B** (always available on Groq free tier) |
 | Port already in use | Run: `streamlit run app.py --server.port 8503` |
 | Whisper file too large | Groq supports audio up to ~25MB — compress/trim before uploading |
+| First load slow (multilingual model) | `paraphrase-multilingual-MiniLM-L12-v2` (~471 MB) downloads once on first run, then cached |
 
 ---
 
@@ -290,15 +297,16 @@ Toggle **🛡️ Safety Guard** in sidebar — Llama Guard 3 20B checks every re
 |---|---|
 | LLM | Llama 4 Scout / Qwen 3 32B / Llama 3.3 70B (via Groq) |
 | Inference | Groq Cloud (~500–900 tok/s) |
-| Audio | Whisper Large v3 Turbo (Groq) |
+| Audio | Whisper Large v3 Turbo — multilingual auto-detect (Groq, 99 langs) |
 | Safety | Llama Guard 3 20B (Groq) |
 | RLHF | PPO-style reward model + value baseline + advantage |
 | Pipeline | LangChain 0.2 + custom production layers |
-| Embeddings | sentence-transformers/all-MiniLM-L6-v2 (free, local) |
+| **Multilingual Embeddings** | **paraphrase-multilingual-MiniLM-L12-v2 (50+ languages, shared embedding space)** |
 | Vector Store | FAISS (local, in-memory) |
 | Sparse Retrieval | BM25 (rank-bm25) |
 | Fusion | Reciprocal Rank Fusion (RRF) |
-| Reranking | ms-marco-MiniLM-L-6-v2 cross-encoder |
+| **Multilingual Reranking** | **mmarco-mMiniLMv2-L12-H384-v1 cross-encoder (13 languages)** |
+| Language Detection | langdetect — auto-detects query language, badge shown in UI |
 | UI | Streamlit + animated neural canvas (JavaScript) |
 
 ---

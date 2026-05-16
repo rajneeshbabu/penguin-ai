@@ -1,4 +1,4 @@
-# Penguin AI — Production RAG + Agentic RAG + RLHF + Voice
+# Penguin AI — Production RAG + Agentic RAG + Multilingual RAG + RLHF + Voice
 # Install: pip install -r requirements.txt
 
 # Groq API (Llama inference — free tier)
@@ -13,11 +13,14 @@ langchain-huggingface>=0.0.3
 # Vector store
 faiss-cpu>=1.8.0
 
-# Embeddings (free, local)
+# Embeddings (free, local — multilingual-MiniLM-L12-v2 supports 50+ languages)
 sentence-transformers>=3.0.0
 
 # BM25 sparse retrieval (Layer 3 hybrid)
 rank-bm25>=0.2.2
+
+# Language detection (for auto-detecting query language in multilingual RAG)
+langdetect>=1.0.9
 
 # Document loaders
 pypdf>=4.0.0

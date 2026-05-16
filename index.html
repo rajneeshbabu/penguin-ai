@@ -130,7 +130,7 @@
   <div class="wrap">
     <div style="font-size:3rem;margin-bottom:.3rem">🐧</div>
     <h1>Penguin AI</h1>
-    <p class="tagline">Multi-mode Chatbot · RLHF · Production RAG · Powered by Groq Free API</p>
+    <p class="tagline">Multi-mode Chatbot · RLHF · Multilingual RAG · Powered by Groq Free API</p>
     <div class="badge-row">
       <span class="badge">⚡ Llama 4 Scout</span>
       <span class="badge teal">🌐 Qwen 3 32B</span>
@@ -138,6 +138,7 @@
       <span class="badge">🧠 RLHF</span>
       <span class="badge teal">📄 Production RAG</span>
       <span class="badge green">🕵️ Agentic RAG</span>
+      <span class="badge teal">🌍 50+ Languages</span>
       <span class="badge">🛡️ Llama Guard</span>
     </div>
     <a href="https://github.com/rajneeshbabu/penguin-ai" class="cta" target="_blank">
@@ -160,7 +161,7 @@
 <!-- ── RAG Pipeline ── -->
 <section class="pipeline-section">
   <div class="wrap">
-    <h2>🔬 Production RAG Pipeline</h2>
+    <h2>🔬 Multilingual Production RAG Pipeline</h2>
     <div class="pipeline">
       <span class="pipe-step">📥 Document Upload</span>
       <span class="pipe-arrow">→</span>
@@ -168,15 +169,17 @@
       <span class="pipe-arrow">→</span>
       <span class="pipe-step">🔑 SHA-256 Dedup</span>
       <span class="pipe-arrow">→</span>
+      <span class="pipe-step">🌍 Multilingual Embed (50+ langs)</span>
+      <span class="pipe-arrow">→</span>
       <span class="pipe-step">🔀 BM25 + FAISS Hybrid</span>
       <span class="pipe-arrow">→</span>
       <span class="pipe-step">⚖️ RRF Fusion</span>
       <span class="pipe-arrow">→</span>
-      <span class="pipe-step">🎯 Cross-Encoder Rerank</span>
+      <span class="pipe-step">🎯 mMiniLM Rerank</span>
       <span class="pipe-arrow">→</span>
       <span class="pipe-step">📌 Citations + Cache</span>
       <span class="pipe-arrow">→</span>
-      <span class="pipe-step">🤖 LLM Answer</span>
+      <span class="pipe-step">🤖 LLM Answer (same language)</span>
     </div>
   </div>
 </section>
@@ -208,10 +211,11 @@
     <h2>✨ Features</h2>
     <div class="card-grid">
       <div class="card"><div class="card-icon">🤖</div><h3>General Chat</h3><p>Conversational AI with 20-turn sliding memory window. RLHF policy adapts temperature to your preferences.</p></div>
-      <div class="card"><div class="card-icon">📄</div><h3>Advanced RAG</h3><p>Upload PDF/DOCX/TXT. 6-layer pipeline: semantic chunks → BM25+FAISS → RRF → cross-encoder → citations.</p></div>
+      <div class="card"><div class="card-icon">🌍</div><h3>Multilingual RAG</h3><p>Ask in Hindi, French, German, Spanish, Japanese or 46 more languages — multilingual embeddings map cross-lingual queries to documents natively. Auto language detection badges your query language in the UI.</p></div>
+      <div class="card"><div class="card-icon">📄</div><h3>Advanced RAG</h3><p>Upload PDF/DOCX/TXT. 6-layer pipeline: semantic chunks → multilingual BM25+FAISS → RRF → mMiniLM rerank → citations.</p></div>
       <div class="card"><div class="card-icon">🕵️</div><h3>Agentic RAG</h3><p>ReAct loop with multi-hop retrieval (up to 3 hops). LLM reasons, picks tools, and self-corrects.</p></div>
       <div class="card"><div class="card-icon">🧠</div><h3>Domain Expert</h3><p>6 specialised personas: Medical · Legal · Finance · Code · Fitness · Research.</p></div>
-      <div class="card"><div class="card-icon">🎙️</div><h3>Whisper v3 Turbo</h3><p>Upload any audio file (mp3/wav/m4a) and get a text transcript instantly via Groq's Whisper API.</p></div>
+      <div class="card"><div class="card-icon">🎙️</div><h3>Whisper Multilingual</h3><p>Upload any audio in any language — Whisper auto-detects and transcribes in 99 languages via Groq's Whisper API.</p></div>
       <div class="card"><div class="card-icon">🛡️</div><h3>Safety Guard</h3><p>Llama Guard 3 20B checks every response for harmful content before it reaches you.</p></div>
     </div>
   </div>
@@ -342,8 +346,9 @@
   // ── Auto chat demo ──────────────────────────────────────────────────────────
   var convos=[
     [{role:'user',text:'What is Agentic RAG?'},{role:'bot',text:'Agentic RAG uses a ReAct loop — the LLM reasons about the question, decides which tool to call (search, summarise, verify), observes the result, and repeats up to 3 hops before giving a final answer. Much more powerful than single-shot retrieval! 🕵️'}],
+    [{role:'user',text:'क्या तुम हिंदी में जवाब दे सकते हो?'},{role:'bot',text:'🌐 Detected: Hindi — हाँ! मैं 50+ भाषाओं को समझता हूँ। आप हिंदी, फ्रेंच, जर्मन, स्पेनिश या किसी भी भाषा में सवाल पूछ सकते हैं — मैं उसी भाषा में जवाब दूँगा। 🌍'}],
     [{role:'user',text:'How does RLHF work here?'},{role:'bot',text:'Each 👍/👎 you click feeds a reward model (human signal + auto heuristics). The advantage (reward − baseline) drives a PPO-style temperature update — positive advantage → exploit, negative → explore. Your feedback literally shapes future responses! 🧠'}],
-    [{role:'user',text:'Can I upload a PDF?'},{role:'bot',text:'Yes! Switch to 📄 Advanced RAG in the sidebar, upload any PDF, and I\'ll chunk it semantically, deduplicate with SHA-256, build a BM25+FAISS hybrid index, rerank with a cross-encoder, and answer with citations. ✅'}],
+    [{role:'user',text:'Can I upload a PDF in French?'},{role:'bot',text:'🌐 Yes! Upload any document in any language. The multilingual embeddings (paraphrase-multilingual-MiniLM-L12-v2) map French, English, German and 47 more languages into the same vector space — so you can upload a French doc and ask questions in English (or vice versa)! ✅'}],
     [{role:'user',text:'How fast is Llama 4 Scout?'},{role:'bot',text:'Via Groq\'s hardware, Llama 4 Scout 17B runs at ~800–900 tok/s — you can see the live tok/s counter below each response. That\'s real-time streaming, not a loading bar! ⚡'}],
   ];
   var ci=0, demo=document.getElementById('chatDemo');
