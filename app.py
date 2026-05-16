@@ -1322,11 +1322,7 @@ with _voice_col:
         components.html(_mic_html, height=58, scrolling=False)
 
 with _voice_label_col:
-    if not _mic_loaded:
-        st.caption("🎙️ **Voice input** — click mic → speak → click '✉️ Use this' to fill chat box &nbsp;|&nbsp; "
-                   "For AI-powered transcription: `pip install streamlit-mic-recorder`")
-    else:
-        st.caption("🎙️ **Voice input** — click mic, speak, stop → auto-transcribed by Whisper")
+    st.caption("🎙️ **Voice mic**")
 
 # Show captured voice transcript
 if st.session_state.get("voice_pending") and st.session_state.voice_transcript:
