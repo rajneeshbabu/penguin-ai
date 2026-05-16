@@ -1243,6 +1243,93 @@ with _voice_col:
             format="wav",
             key="mic_recorder_main",
         )
+        # ── VAD auto-stop companion (Web Audio API silence detection) ──────
+        # Monitors microphone volume in the background; when the user stops
+        # speaking for SILENCE_MS it automatically clicks the ⏹️ stop button
+        # inside the mic-recorder iframe — no user action needed.
+        _vad_html = """
+<script>
+(function(){
+  const SILENCE_THR  = 18;    // RMS threshold below which = silence (0-255 scale)
+  const SPEECH_THR   = 30;    // RMS above which = speech detected
+  const SILENCE_MS   = 1500;  // ms of silence after speech → auto-stop
+  const NO_SPEECH_MS = 6000;  // ms with no speech at all → abort monitoring
+
+  let ctx=null, analyser=null, stream=null, raf=null;
+  let silenceStart=null, speechSeen=false, active=false, startTs=null;
+
+  function stopMonitoring(){
+    active=false; cancelAnimationFrame(raf);
+    if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+    if(ctx){ctx.close();ctx=null;}
+    analyser=null; silenceStart=null; speechSeen=false;
+  }
+
+  function clickStopBtn(){
+    // Find the ⏹️ button inside any same-origin iframe (streamlit-mic-recorder)
+    const frames=window.parent.document.querySelectorAll('iframe');
+    for(const f of frames){
+      try{
+        const btns=f.contentDocument.querySelectorAll('button');
+        for(const b of btns){
+          if(b.textContent.trim()==='⏹️'){b.click();return;}
+        }
+      }catch(e){}
+    }
+  }
+
+  async function startMonitoring(){
+    if(active) return;
+    active=true; speechSeen=false; silenceStart=null; startTs=Date.now();
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+      ctx=new AudioContext();
+      const src=ctx.createMediaStreamSource(stream);
+      analyser=ctx.createAnalyser(); analyser.fftSize=256;
+      src.connect(analyser);
+      const buf=new Uint8Array(analyser.frequencyBinCount);
+      function tick(){
+        if(!active) return;
+        analyser.getByteFrequencyData(buf);
+        const rms=Math.sqrt(buf.reduce((s,v)=>s+v*v,0)/buf.length);
+        const now=Date.now();
+        if(rms>SPEECH_THR){
+          speechSeen=true; silenceStart=null;
+        } else if(speechSeen){
+          if(!silenceStart) silenceStart=now;
+          if(now-silenceStart>SILENCE_MS){
+            clickStopBtn(); stopMonitoring(); return;
+          }
+        } else if(now-startTs>NO_SPEECH_MS){
+          // No speech at all within timeout — stop monitoring silently
+          stopMonitoring(); return;
+        }
+        raf=requestAnimationFrame(tick);
+      }
+      tick();
+    }catch(e){ active=false; }
+  }
+
+  // Poll for the recorder switching to recording state (⏹️ button appears)
+  let wasRecording=false;
+  setInterval(function(){
+    const frames=window.parent.document.querySelectorAll('iframe');
+    let recording=false;
+    for(const f of frames){
+      try{
+        const btns=f.contentDocument.querySelectorAll('button');
+        for(const b of btns){if(b.textContent.trim()==='⏹️'){recording=true;break;}}
+      }catch(e){}
+      if(recording) break;
+    }
+    if(recording && !wasRecording){ startMonitoring(); }
+    if(!recording && wasRecording){ stopMonitoring(); }
+    wasRecording=recording;
+  }, 300);
+})();
+</script>"""
+        components.html(_vad_html, height=0, scrolling=False)
+
         if _audio_data and _audio_data.get("bytes") and api_key:
             with st.spinner("Transcribing…"):
                 try:
@@ -1256,6 +1343,7 @@ with _voice_col:
                     st.warning(f"Transcription failed: {_e}")
     else:
         # Fallback: Web Speech API mic button (browser-native, no Whisper needed)
+        # AUTO-STOP: continuous=true + silence timer → stops & auto-sends after 1.5s of silence
         _mic_html = """
 <style>
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -1271,64 +1359,130 @@ with _voice_col:
   @keyframes pr{0%{box-shadow:0 0 0 0 rgba(124,58,237,.5)}
                 70%{box-shadow:0 0 0 10px rgba(124,58,237,0)}
                 100%{box-shadow:0 0 0 0 rgba(124,58,237,0)}}
-  #ms{font-size:.75rem;color:#7c3aed;min-width:120px;}
+  #ms{font-size:.75rem;color:#7c3aed;min-width:160px;}
   #mt{font-size:.8rem;color:#c4b5fd;background:rgba(30,27,75,.8);border:1px solid #4c1d95;
-      border-radius:8px;padding:5px 9px;max-width:380px;word-break:break-word;display:none;}
-  #msb{background:linear-gradient(135deg,#7c3aed,#4c1d95);border:none;border-radius:8px;
-       color:#fff;font-size:.75rem;padding:4px 10px;cursor:pointer;display:none;}
+      border-radius:8px;padding:5px 9px;max-width:360px;word-break:break-word;display:none;}
+  #sbar{height:3px;border-radius:2px;background:rgba(124,58,237,.2);width:80px;overflow:hidden;display:none;}
+  #sbar-fill{height:3px;background:linear-gradient(90deg,#7c3aed,#06b6d4);width:0%;transition:width .1s;}
 </style>
 <div id="mw">
   <button id="mb">🎙️</button>
-  <span id="ms">Click to speak</span>
+  <div>
+    <span id="ms">Click to speak — auto-sends on silence</span>
+    <div id="sbar"><div id="sbar-fill"></div></div>
+  </div>
   <div id="mt"></div>
-  <button id="msb">✉️ Use this</button>
 </div>
 <script>
 (function(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   const btn=document.getElementById('mb'),st=document.getElementById('ms'),
-        tr=document.getElementById('mt'),sb=document.getElementById('msb');
+        tr=document.getElementById('mt'),sbar=document.getElementById('sbar'),
+        sfill=document.getElementById('sbar-fill');
   if(!SR){st.textContent='⚠️ Use Chrome for mic';btn.style.opacity='.4';btn.disabled=true;return;}
-  const rec=new SR();rec.continuous=false;rec.interimResults=true;rec.lang='en-US';
-  let on=false,final='';
-  btn.onclick=()=>{on?rec.stop():rec.start();};
-  rec.onstart=()=>{on=true;btn.classList.add('on');btn.textContent='⏹️';st.textContent='🔴 Listening…';final='';tr.style.display='none';sb.style.display='none';};
-  rec.onresult=(e)=>{let interim='';
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      const t=e.results[i][0].transcript;
-      if(e.results[i].isFinal)final+=t+' ';else interim+=t;}
-    tr.style.display='block';tr.textContent=(final+interim).trim()||'…';};
-  rec.onend=()=>{on=false;btn.classList.remove('on');btn.textContent='🎙️';
-    if(final.trim()){st.textContent='✅ Click "Use this"';tr.textContent=final.trim();tr.style.display='block';sb.style.display='inline-block';}
-    else{st.textContent='Click to speak';}};
-  rec.onerror=(e)=>{on=false;btn.classList.remove('on');btn.textContent='🎙️';
-    const m={'not-allowed':'❌ Allow mic in browser','no-speech':'🔇 Nothing heard','aborted':'Click to speak'};
-    st.textContent=m[e.error]||'Error: '+e.error;};
-  sb.onclick=()=>{
-    const txt=final.trim();if(!txt)return;
-    // Write to parent sessionStorage so Streamlit can pick it up
-    try{window.parent.sessionStorage.setItem('penguin_voice',txt);}catch(e){}
-    // Also try to find and fill the chat input in parent
+
+  const SILENCE_MS = 1500;   // auto-stop after 1.5 s of silence
+  const NO_SPEECH_MS = 5000; // auto-stop if no speech at all within 5 s
+
+  const rec = new SR();
+  rec.continuous = true;       // keep listening across natural pauses
+  rec.interimResults = true;
+  rec.lang = '';               // auto-detect language (matches multilingual RAG)
+
+  let on=false, final='', silenceTimer=null, noSpeechTimer=null, speechSeen=false;
+
+  function autoSend(txt){
+    st.textContent='🚀 Sending…';
+    tr.style.display='block'; tr.textContent=txt;
+    sbar.style.display='none';
+    // Fill parent chat textarea
     try{
       const inp=window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
       if(inp){
-        const nativeInputValueSetter=Object.getOwnPropertyDescriptor(window.parent.HTMLTextAreaElement.prototype,'value').set;
-        nativeInputValueSetter.call(inp,txt);
+        const setter=Object.getOwnPropertyDescriptor(window.parent.HTMLTextAreaElement.prototype,'value').set;
+        setter.call(inp,txt);
         inp.dispatchEvent(new Event('input',{bubbles:true}));
         inp.focus();
+        // Simulate Enter to submit
+        inp.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,key:'Enter',code:'Enter',keyCode:13}));
+        inp.dispatchEvent(new KeyboardEvent('keyup',{bubbles:true,cancelable:true,key:'Enter',code:'Enter',keyCode:13}));
       }
     }catch(e){}
-    st.textContent='✅ Filled in chat box below!';sb.style.display='none';};
+    setTimeout(()=>{st.textContent='Click to speak — auto-sends on silence';tr.style.display='none';},2500);
+  }
+
+  function resetTimers(){
+    clearTimeout(silenceTimer); clearTimeout(noSpeechTimer);
+  }
+  function startSilenceTimer(){
+    clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(()=>{ if(final.trim()){ rec.stop(); } }, SILENCE_MS);
+  }
+
+  btn.onclick=()=>{
+    if(on){ rec.stop(); return; }
+    rec.start();
+  };
+
+  rec.onstart=()=>{
+    on=true; final=''; speechSeen=false;
+    btn.classList.add('on'); btn.textContent='⏹️';
+    st.textContent='🔴 Listening… (auto-stops on silence)';
+    sbar.style.display='block'; sfill.style.width='0%';
+    tr.style.display='none';
+    // Kill after NO_SPEECH_MS if user never spoke
+    noSpeechTimer = setTimeout(()=>{
+      if(!speechSeen){ rec.stop(); st.textContent='🔇 No speech — click to retry'; }
+    }, NO_SPEECH_MS);
+  };
+
+  rec.onresult=(e)=>{
+    speechSeen=true;
+    clearTimeout(noSpeechTimer); // cancel no-speech timeout once user starts talking
+    let interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=e.results[i][0].transcript;
+      if(e.results[i].isFinal) final+=t+' '; else interim+=t;
+    }
+    const txt=(final+interim).trim();
+    tr.style.display='block'; tr.textContent=txt||'…';
+    // Silence bar: reset fill → grow toward stop
+    sfill.style.width='0%';
+    startSilenceTimer();
+    // Visual: grow bar to show silence countdown
+    let p=0;
+    const barTimer=setInterval(()=>{
+      p+=100/(SILENCE_MS/100);
+      sfill.style.width=Math.min(p,100)+'%';
+      if(p>=100) clearInterval(barTimer);
+    },100);
+  };
+
+  rec.onspeechend=()=>{ startSilenceTimer(); };
+
+  rec.onend=()=>{
+    on=false; btn.classList.remove('on'); btn.textContent='🎙️';
+    sbar.style.display='none'; resetTimers();
+    if(final.trim()){ autoSend(final.trim()); final=''; }
+    else if(speechSeen){ st.textContent='Click to speak — auto-sends on silence'; }
+  };
+
+  rec.onerror=(e)=>{
+    on=false; btn.classList.remove('on'); btn.textContent='🎙️';
+    sbar.style.display='none'; resetTimers();
+    const m={'not-allowed':'❌ Allow mic in browser','no-speech':'🔇 Nothing heard — click to retry','aborted':'Click to speak — auto-sends on silence'};
+    st.textContent=m[e.error]||'Error: '+e.error;
+  };
 })();
 </script>"""
-        components.html(_mic_html, height=58, scrolling=False)
+        components.html(_mic_html, height=62, scrolling=False)
 
 with _voice_label_col:
     if not _mic_loaded:
-        st.caption("🎙️ **Voice input** — click mic → speak → click '✉️ Use this' to fill chat box &nbsp;|&nbsp; "
-                   "For AI-powered transcription: `pip install streamlit-mic-recorder`")
+        st.caption("🎙️ **Voice input** — click mic → speak → **auto-sends after 1.5 s of silence** &nbsp;|&nbsp; "
+                   "For Whisper transcription: `pip install streamlit-mic-recorder`")
     else:
-        st.caption("🎙️ **Voice input** — click mic, speak, stop → auto-transcribed by Whisper")
+        st.caption("🎙️ **Voice input** — click mic → speak → **auto-stops & transcribes after silence** (Whisper multilingual)")
 
 # Show captured voice transcript
 if st.session_state.get("voice_pending") and st.session_state.voice_transcript:
